@@ -16,18 +16,21 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Confirmed real payload shape from AiSensy's Custom API Action
-    // (matches the JSON body we configured in the action's Body tab).
+    // IMPORTANT: the exact shape of req.body depends entirely on
+    // which platform (AiSensy / Interakt) is sending it, and we
+    // won't know the real field names until we see one actual
+    // test payload from their dashboard. This is a reasonable
+    // starting guess we WILL need to adjust.
     const payload = req.body;
 
     console.log('Incoming webhook payload:', JSON.stringify(payload));
 
-    const customerName = payload.customer_name || 'Unknown';
-    const phone = payload.phone || '';
-    const item = payload.item || '';
-    const qty = parseInt(payload.qty) || 1;
-    const message = payload.message || '';
-    const source = payload.source || 'WhatsApp';
+    // Best-guess extraction — update these field names once we
+    // see a real payload from AiSensy/Interakt's test webhook.
+    const customerName = payload.contact_name || payload.sender_name || 'Unknown';
+    const phone = payload.from || payload.phone || payload.wa_id || '';
+    const message = payload.message || payload.text || payload.body || '';
+    const source = payload.channel === 'instagram' ? 'Instagram DM' : 'WhatsApp';
 
     const { data, error } = await supabase
       .from('orders')
@@ -35,8 +38,6 @@ module.exports = async (req, res) => {
         {
           customer_name: customerName,
           phone: phone,
-          item: item,
-          qty: qty,
           message: message,
           source: source,
           status: 'pending',
