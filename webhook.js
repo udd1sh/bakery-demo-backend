@@ -38,20 +38,27 @@ module.exports = async (req, res) => {
   source: source
 });
     
-    const { data, error } = await supabase
-      .from('orders')
-      .insert([
-        {
-          customer_name: customerName,
-          phone: phone,
-          item: item,
-          qty: qty,
-          message: message,
-          source: source,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+   const orderToInsert = {
+  customer_name: String(payload.customer_name ?? ''),
+  phone: String(payload.phone ?? ''),
+  item: String(payload.item ?? ''),
+  qty: Number(payload.qty ?? 1),
+  message: String(payload.message ?? ''),
+  source: String(payload.source ?? 'WhatsApp'),
+  status: 'pending',
+  created_at: new Date().toISOString(),
+};
+
+console.log('INSERTING THIS EXACT OBJECT:', JSON.stringify(orderToInsert));
+
+const { data, error } = await supabase
+  .from('orders')
+  .insert([orderToInsert])
+  .select()
+  .single();
+
+console.log('SUPABASE RETURNED:', JSON.stringify(data));
+console.log('SUPABASE ERROR:', JSON.stringify(error));
 
     if (error) {
       console.error('Supabase insert error:', error);
