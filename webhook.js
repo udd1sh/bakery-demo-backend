@@ -29,6 +29,15 @@ module.exports = async (req, res) => {
     const message = payload.message || '';
     const source = payload.source || 'WhatsApp';
 
+    console.log('VALUES BEING SENT TO SUPABASE:', {
+  customer_name: customerName,
+  phone: phone,
+  item: item,
+  qty: qty,
+  message: message,
+  source: source
+});
+    
     const { data, error } = await supabase
       .from('orders')
       .insert([
