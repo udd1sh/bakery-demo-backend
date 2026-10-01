@@ -6,51 +6,57 @@ const supabase = createClient(
 );
 
 module.exports = async (req, res) => {
-  // Only accept POST requests (that's what webhooks send)
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Only POST requests allowed' });
   }
 
   try {
-    // IMPORTANT: the exact shape of req.body depends entirely on
-    // which platform (AiSensy / Interakt) is sending it, and we
-    // won't know the real field names until we see one actual
-    // test payload from their dashboard. This is a reasonable
-    // starting guess we WILL need to adjust.
     const payload = req.body;
 
+    console.log('=== WEBHOOK VERSION 4 ===');
     console.log('Incoming webhook payload:', JSON.stringify(payload));
 
-    // Best-guess extraction — update these field names once we
-    // see a real payload from AiSensy/Interakt's test webhook.
-    const customerName = payload.contact_name || payload.sender_name || 'Unknown';
-    const phone = payload.from || payload.phone || payload.wa_id || '';
-    const message = payload.message || payload.text || payload.body || '';
-    const source = payload.channel === 'instagram' ? 'Instagram DM' : 'WhatsApp';
+    const orderToInsert = {
+      customer_name: String(payload.customer_name ?? ''),
+      phone: String(payload.phone ?? ''),
+      item: String(payload.item ?? ''),
+      qty: Number(payload.qty ?? 1),
+      message: String(payload.message ?? ''),
+      source: String(payload.source ?? 'WhatsApp'),
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    };
+
+    console.log(
+      'INSERTING THIS EXACT OBJECT:',
+      JSON.stringify(orderToInsert)
+    );
 
     const { data, error } = await supabase
       .from('orders')
-      .insert([
-        {
-          customer_name: customerName,
-          phone: phone,
-          message: message,
-          source: source,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-        },
-      ]);
+      .insert([orderToInsert]);
+
+    console.log('SUPABASE RETURNED:', JSON.stringify(data));
+    console.log('SUPABASE ERROR:', JSON.stringify(error));
 
     if (error) {
-      console.error('Supabase insert error:', error);
-      return res.status(500).json({ error: 'Database write failed' });
+      return res.status(500).json({
+        error: 'Database write failed',
+        details: error.message
+      });
     }
 
-    // Respond 200 quickly — most platforms expect a fast response
-    // or they'll consider the webhook delivery failed and retry.
-    return res.status(200).json({ received: true });
+    return res.status(200).json({
+      received: true,
+      version: 'v4'
+    });
+
   } catch (err) {
     console.error('Webhook handler error:', err);
-    return res.status(500).json({ error: 'Internal error' });
+
+    return res.status(500).json({
+      error: 'Internal error',
+      details: err.message
+    });
   }
 };
